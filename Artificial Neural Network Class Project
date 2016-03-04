@@ -1,0 +1,300 @@
+#Artifical Neural Network homework
+#Creates a neural network that, given a list of 30 numbers representing what squares in a 5x6 grid
+#have been colored in, can guess what octal number (0-7) was written on the grid
+import numpy as np
+from math import *
+from random import *
+
+#Activation function used for hidden and output nodes
+def actfunc(x):
+    return np.tanh(0.5*x)
+
+#Derivative of activation function used for error back propagation
+def derivactfunc(x):
+    return (1.0-actfunc(0.5*x)**2)*0.5
+
+#Class that represents feature detecting neural network
+class ANN:
+
+    def __init__(self):
+        seed()
+
+        #The number of neurons in each layer
+        self.inputnumber = 30
+        self.hiddennumber = 50
+        self.outputnumber = 8
+
+        #Lists that contain the value outputted by each neuron
+        self.inputoutput = [0.0]*self.inputnumber
+        self.hiddenoutput = [0.0]*self.hiddennumber
+        self.outputoutput = [0.0] *self.outputnumber
+
+        #List of the input received for each neuron
+        self.hiddeninput = [0.0]*self.hiddennumber
+        self.outputinput = [0.0] *self.outputnumber
+
+        #Create weight matrix for weights from input to hidden and from
+        #hidden to output and give the weights random values between -2 and 2
+        self.inputweightmatrix = np.array([0.0]*self.hiddennumber*self.inputnumber)
+        for i in range(self.hiddennumber*self.inputnumber):
+            self.inputweightmatrix[i] = randint(0, 2000)*0.002-2
+        self.inputweightmatrix = self.inputweightmatrix.reshape(self.inputnumber, self.hiddennumber)
+        self.outputweightmatrix = np.array([0.0]*self.hiddennumber*self.outputnumber)
+        for i in range(self.hiddennumber*self.outputnumber):
+            self.outputweightmatrix[i] = randint(0, 2000)*0.002-2
+        self.outputweightmatrix = self.outputweightmatrix.reshape(self.outputnumber, self.hiddennumber)
+
+        self.hiddenmomentum = np.array([0.0]*self.hiddennumber*self.inputnumber)
+        self.hiddenmomentum = self.hiddenmomentum.reshape(self.inputnumber, self.hiddennumber)
+        self.outputmomentum = np.array([0.0]*self.hiddennumber*self.outputnumber)
+        self.outputmomentum = self.outputmomentum.reshape(self.outputnumber, self.hiddennumber)
+
+
+        #Contains firing threshold for neurons (not currently used)
+        self.outputthreshold = [-10.5]*self.outputnumber
+        self.hiddenthreshold = [-10.4]*self.hiddennumber
+
+        #Learning rate that adjusted how drastically the weights are adjusted
+        self.lrate = 0.1
+
+        #The momentum rate that can cause the weight change to be affected by how it changed previously
+        self.mrate = 0.0
+
+        #List for the error value for each hidden and output neuron found with
+        #back propagation
+        self.hiddenerrorlist = [0.0]*self.hiddennumber
+        self.outputerrorlist = [0.0]*self.outputnumber
+
+        #Rerandomizes the weights of the neural network
+    def shuffle(self):
+        seed()
+        self.inputweightmatrix = np.array([0.0]*self.hiddennumber*self.inputnumber)
+        for i in range(self.hiddennumber*self.inputnumber):
+            self.inputweightmatrix[i] = randint(0, 200)*0.02-2
+        self.inputweightmatrix = self.inputweightmatrix.reshape(self.inputnumber, self.hiddennumber)
+        self.outputweightmatrix = np.array([0.0]*self.hiddennumber*self.outputnumber)
+        for i in range(self.hiddennumber*self.outputnumber):
+            self.outputweightmatrix[i] = randint(0, 200)*0.02-2
+        self.outputweightmatrix = self.outputweightmatrix.reshape(self.outputnumber, self.hiddennumber)
+
+    #Training function that uses output neurons have a sigmoidal activation
+    #function
+    #Has two parameters, a list of the given input, and a list of the expected
+    #output
+    #The input is put in and the output is calculated, then the output is compared
+    #to the expected output to find the error, which is back propagated to change
+    #the weights of the neuron connections between the different neurons
+    def traininginput(self, inputlist, targetoutputlist):
+        temp = 0
+        for i in range(len(targetoutputlist)):
+            if targetoutputlist[i]==0:
+                targetoutputlist[i] = -1
+            if targetoutputlist[i] == 1:
+                targetoutputlist[i] = 1
+        #Sets the output of the input neurons to the input list
+        self.inputoutput = inputlist
+
+        #Calculates the input of the hidden neurons using the input list and
+        #the weights of the input to hidden connections
+        for i in range(self.hiddennumber):
+            temp = 0
+            for j in range(self.inputnumber):
+                temp = temp + inputlist[j]*self.inputweightmatrix[j, i]
+            self.hiddenoutput[i] = actfunc(temp)
+            self.hiddeninput[i] = temp
+            if self.hiddenoutput[i]<self.hiddenthreshold[i]:
+                self.hiddenoutput[i] = 0
+        #Calculates the input of the output nodes
+        for i in range(self.outputnumber):
+            temp = 0
+            for j in range(self.hiddennumber):
+                temp = temp+self.hiddenoutput[j]*self.outputweightmatrix[i, j]
+            self.outputinput[i] = temp
+            self.outputoutput[i] = actfunc(temp)
+            if self.hiddenoutput[i]<self.hiddenthreshold[i]:
+                self.hiddenoutput[i] = 0
+
+        #Calculates the error of the output neurons using the target output
+        #and the back propagation algorithm
+        for i in range(self.outputnumber):
+            self.outputerrorlist[i] = (targetoutputlist[i]-self.outputoutput[i])
+            self.outputerrorlist[i] = self.outputerrorlist[i]*derivactfunc(self.outputinput[i])
+
+        #Calculates the error of the hidden neurons using the back propagation algorithm and the error
+        #of the output layer
+        for i in range(self.hiddennumber):
+            temp = 0
+            for j in range(self.outputnumber):
+                temp += self.outputerrorlist[j]*self.outputweightmatrix[j, i]
+            self.hiddenerrorlist[i] = temp
+            self.hiddenerrorlist[i]=self.hiddenerrorlist[i]*derivactfunc(self.hiddeninput[i])
+
+        #Adjusts the weights
+        for i in range(self.outputnumber):
+            for j in range(self.hiddennumber):
+                self.outputweightmatrix[i, j] += self.lrate*self.outputerrorlist[i] + self.mrate*self.outputmomentum[i,j]
+                self.outputmomentum[i,j] = self.outputerrorlist[i]
+        for i in range(self.inputnumber):
+            for j in range(self.hiddennumber):
+                self.inputweightmatrix[i, j]+=self.lrate*self.hiddenerrorlist[j] + self.mrate*self.hiddenmomentum[i,j]
+                self.hiddenmomentum[i,j]=self.hiddenerrorlist[j]
+
+    #Takes an input list and has the neural network output an integer between 0 and 7
+    def anninput(self, inputlist):
+        temp = 0
+        self.inputoutput = inputlist
+        for i in range(self.hiddennumber):
+            temp = 0
+            for j in range(self.inputnumber):
+                temp = temp + inputlist[j]*self.inputweightmatrix[j, i]
+            self.hiddenoutput[i] = actfunc(temp)
+            self.hiddeninput[i] = temp
+            if self.hiddenoutput[i]<self.hiddenthreshold[i]:
+                self.hiddenoutput[i] = 0
+        for i in range(self.outputnumber):
+            temp = 0
+            for j in range(self.hiddennumber):
+                temp = temp+self.hiddenoutput[j]*self.outputweightmatrix[i, j]
+            self.outputinput[i] = temp
+            self.outputoutput[i] = actfunc(temp)
+            if self.outputoutput[i]<self.outputthreshold[i]:
+                self.outputoutput[i] = 0
+
+        maximum = 0
+
+        #Determines which output neuron has the highest value and return it
+        for i in range(7):
+            if self.outputoutput[i+1]>self.outputoutput[maximum]:
+                maximum = i+1
+
+        #returns the number for the output neuron with the highest output value
+        return maximum
+
+        #This is a debug option to print out a list of the output neurons that
+        #output a value higher than a set number
+        maxlist = []
+        for i in range(8):
+            if self.outputoutput[i] > 0.3:
+                maxlist.append(i)
+        print(maxlist)
+        maxvaluelist = []
+        maxerrorlist = []
+        for i in maxlist:
+            maxvaluelist.append(self.outputoutput[i])
+            maxerrorlist.append(self.outputerrorlist[i])
+        print(maxerrorlist)
+        return maxvaluelist
+    
+#Creates a random list of 30 digits that are either 0 or 1         
+def randlist():
+    trainlist = [0.0]*30
+    for i in range(30):
+        randomnumber = randint(1, 100)
+        if randomnumber > 27:
+            trainlist[i] = 1
+    return trainlist[:]
+
+#Trains the neural network using a list with 3 test inputs for each octal digit
+#It runs the test cases sequentially, doing the three for 0, the threee for 1,
+#the three for 2 and so on, then after doing the three for 7 it loops back around
+#until it has done enough iterations
+def tester(testlist, x, iterations, repeat):
+    targetoutput = [0.0]*8
+    for i in range(iterations):
+        for j in range(8):
+            targetoutput = [0.0]*8
+            targetoutput[j] = 1
+            for k in testlist[j]:
+                for l in range(repeat):
+                    x.traininginput(k, targetoutput)
+
+        #After going through one training loop the program prints out the results of each numbers
+        #first test case so the user can see how accurate the neural network is
+        print(x.anninput(testlist[0][0]), x.anninput(testlist[1][0]), x.anninput(testlist[2][0]),
+              x.anninput(testlist[3][0]), x.anninput(testlist[4][0]), x.anninput(testlist[5][0]),
+              x.anninput(testlist[6][0]), x.anninput(testlist[7][0]))
+
+#An edited tester that tests a random test case for each iteration
+def testerrandom(testlist, x, iterations, repeat):
+    targetoutput = [0.0]*8
+    for i in range(iterations):
+        j = randint(0,7)
+        targetoutput = [0.0]*8
+        targetoutput[j] = 1
+        k = testlist[j][randint(0,2)]
+        for l in range(repeat):
+            x.traininginput(k, targetoutput)
+        if i%1 == 0:
+            print(x.anninput(testlist[0][0]), x.anninput(testlist[1][0]), x.anninput(testlist[2][0]),
+                  x.anninput(testlist[3][0]), x.anninput(testlist[4][0]), x.anninput(testlist[5][0]),
+                  x.anninput(testlist[6][0]), x.anninput(testlist[7][0]))
+
+#An edited tester that creates a list of the octal digits, shuffles it, and does
+#the test cases for those digits in the shuffled order. Then a new octal list
+#is made and shuffled until enough iterations have past
+def testershuffle(testlist, x, iterations, repeat):
+    targetoutput = [0.0]*8
+    for i in range(iterations):
+        numberlist = [0, 1, 2, 3, 4 ,5, 6, 7]
+        shuffle(numberlist)
+        for j in numberlist:
+            targetoutput = [0.0]*8 
+            targetoutput[j] = 1
+            for k in testlist[j]:
+                for l in range(repeat):
+                    x.traininginput(k, targetoutput)
+        if i%100 == 0:
+            outputlist = [x.anninput(testlist[0][0]), x.anninput(testlist[1][0]), x.anninput(testlist[2][0]),
+                  x.anninput(testlist[3][0]), x.anninput(testlist[4][0]), x.anninput(testlist[5][0]),
+                  x.anninput(testlist[6][1]), x.anninput(testlist[7][2])]
+            print("After training case #", i+1)
+            print(outputlist)
+            correct = 0
+            for i in range(8):
+                if outputlist[i]==i:
+                    correct += 1
+            print(correct, "correct")
+
+#Each test varaible is the test case for an octal digit and is put into the list given to the tester function
+test01 = [0,1,1,1,0,0,1,0,1,0,0,1,0,1,0,0,1,0,1,0,0,1,1,1,0,0,0,0,0,0]
+test02 = [0,0,0,0,0,0,1,1,1,1,0,1,0,0,1,0,1,0,0,1,0,1,1,1,0,0,0,0,0,0]
+test03 = [0,1,1,1,0,0,1,0,0,1,1,0,0,0,1,1,0,0,0,1,0,1,1,1,0,0,0,0,0,0]
+test0list = [test01, test02, test03]
+test11 = [0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,1,1,1,0,0,0,0,0,0]
+test12 = [0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0,0,0,1,0,0]
+test13 = [0,0,1,0,0,0,1,1,0,0,0,1,1,0,0,0,0,1,0,0,1,1,1,1,1,0,0,0,0,0]
+test1list = [test11, test12, test13]
+test21 = [0,1,1,1,0,1,0,0,1,0,0,0,0,1,0,0,0,1,0,0,0,1,1,1,1,0,0,0,0,0]
+test22 = [0,1,1,0,0,0,1,0,1,0,1,0,0,1,0,0,0,1,0,0,1,1,1,0,0,0,0,0,1,0]
+test23 = [0,0,0,0,0,0,1,1,1,0,0,0,0,1,0,0,0,1,0,0,0,1,1,1,0,0,0,0,0,0]
+test2list = [test21, test22, test23]
+test31 = [0,1,1,0,0,0,1,1,0,0,0,0,1,0,0,0,1,1,0,0,1,1,1,0,0,0,0,0,0,0]
+test32 = [0,1,1,1,0,0,1,0,1,0,0,0,1,0,0,0,0,0,1,0,0,1,1,1,0,0,0,0,0,0]
+test33 = [0,0,0,0,0,0,1,1,0,0,0,0,1,0,0,0,0,1,0,0,1,1,1,0,0,0,0,0,0,0]
+test3list = [test31, test32, test33]
+test41 = [0,0,0,0,0,0,1,0,1,0,0,1,0,1,0,0,1,1,1,0,0,0,0,1,0,0,0,0,1,0]
+test42 = [0,0,0,0,0,0,0,1,1,0,0,1,0,1,0,1,1,1,1,0,0,0,0,1,0,0,0,0,1,0]
+test43 = [0,0,0,1,0,0,0,1,1,0,0,1,0,1,0,1,1,1,1,0,0,0,0,1,0,0,0,0,1,0]
+test4list = [test41, test42, test43]
+test51 = [0,0,0,0,0,0,1,1,1,1,0,0,1,0,0,0,0,1,1,0,0,1,1,1,0,0,0,0,0,0]
+test52 = [0,1,1,1,1,0,1,0,0,0,0,1,1,0,0,0,0,1,0,0,1,0,1,0,0,0,1,1,0,0]
+test53 = [1,1,1,1,0,1,0,0,0,0,1,1,1,1,0,0,0,0,1,0,0,0,0,1,0,0,1,1,0,0]
+test5list = [test51, test52, test53]
+test61 = [0,0,1,1,0,0,1,0,0,0,0,1,1,1,0,0,1,0,1,0,0,1,0,1,0,0,1,1,1,0]
+test62 = [0,0,0,0,0,0,1,1,1,0,0,1,0,0,0,0,1,1,1,0,0,1,0,1,0,0,1,1,1,0]
+test63 = [0,1,1,1,0,0,1,0,0,0,0,1,0,0,0,0,1,1,1,0,0,1,0,1,0,0,0,1,0,0]
+test6list = [test61, test62, test63]
+test71 = [0,1,1,1,1,0,0,0,0,1,0,0,0,0,1,1,0,0,0,1,1,0,0,0,0,1,0,0,0,0]
+test72 = [0,1,1,1,0,0,0,0,1,1,0,0,0,0,1,0,0,0,0,1,1,0,0,0,0,1,0,0,0,0]
+test73 = [0,1,1,1,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,0,0,0,0,0,0]
+test7list = [test71, test72, test73]
+testlist = [test0list, test1list, test2list, test3list, test4list, test5list, test6list, test7list]
+
+x = ANN()
+testershuffle(testlist, x, 1000, 1)
+
+#Debug code that tests how well the neural network can train itself using one test case
+##for i in range(10000):
+##    x.traininginput(test22, [0, 0, 1, 0, 0, 0, 0, 0])
+##    print(x.anninput(test22))
+    
