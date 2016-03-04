@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+<!-- The initial screen and login page for the site -->
+
+{% block error %}
+{% if error_message %}<p><strong>{{ error_message }}</strong></p>{% endif %}
+{% endblock %}
+{% block content %}
+<form class="navbar-form navbar-right" action="{% url 'chem:logged' %}" method="post">{% csrf_token %}
+    {% block username %}
+<input type="text" name="username" placeholder="Username" class="form-control" id="username"/>
+        {% endblock %}
+    {% block psswd %}
+<input type="password" name="password" placeholder="Password" class="form-control" id="password"/>
+    {% endblock %}
+{% block submit %}
+<button type="submit" value="Login" class="btn btn-success">Sign in</button>
+        {% endblock %}
+</form>
+{% endblock %}
+

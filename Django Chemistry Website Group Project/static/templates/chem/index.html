@@ -1,0 +1,53 @@
+{% extends "SecondBase.html" %}
+
+<!-- Debug text to show what the user's name, school, and type is -->
+<h1>{% block user_logs %}Hello, {{user.username}}!{% endblock %}</h1>
+{% block content %}
+
+    {% if user.is_staff %}
+        <h1>Welcome Admin!</h1>
+    {% else %}
+        {% if newquestion %}
+
+            <!-- If the current user is a student then display the question with a form to answer it with -->
+            {% if user.student %}
+
+                <!-- If the student has already answered this question display this message -->
+                {% autoescape off %}
+                <h4>{{ newquestion.question_text }}</h4>
+                {% endautoescape %}
+                {% if correct %}
+                    <p>You already completed the most recent question</p>
+                {% else %}
+
+                    <!-- The form for answering the question, submits to the grade function in views -->
+
+                    <form action="{% url 'chem:grade' %}" method="post">
+                     {% csrf_token %}
+                        {% autoescape off %}
+                        {{ html }}
+                        {% endautoescape %}
+                    <input type="submit" value="Submit" />
+                    </form>
+                    {{ answer }}
+                {% endif %}
+            {% endif %}
+
+            <!-- If the user is a teacher then the main page will display a list of examples of all current questions -->
+            {% if user.teacher %}
+                {% autoescape off %}
+                <h1>Example:</h1>
+                {% for q in newquestion %}
+                <h4>{{q.question_text}}</h4>
+                <h4>{{q.answer.evaluate}}</h4>
+                {% endfor %}
+                {% endautoescape %}
+            {% endif %}
+
+        {% else %}
+            <p>No Question Today</p>
+        {% endif %}
+{% endif %}
+    <a href="{% url 'chem:changePass' %}">Change Password</a>
+    <a href="{% url 'chem:changeEmail' %}">Change Email</a>
+{% endblock %}
